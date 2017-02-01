@@ -1,0 +1,73 @@
+#include <stdio.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <arpa/inet.h>
+
+#define BUF_SIZE 256
+#define QUE_LEN 10
+
+
+typedef struct _data {
+	float value;
+	int number;
+	char variable;
+}data;
+
+float ntohf(float f){
+int num =ntohl(*(unsigned int *)&f);
+return *(float *)&num;
+}
+
+fatal(char *str){
+printf("%s\n",str);
+exit(0);
+}
+
+int main(int argc, char *argv[]){
+	int sockfd, newsockfd, portnum, clilen,k,l,m,n;
+	char buff[BUF_SIZE];
+	float f;
+	struct sockaddr_in serv_addr, cli_addr;
+	data data;
+	
+	if (argc < 2)
+	fatal("please provide port number");
+	
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if(sockfd < 0) fatal("Error opening socket");
+	
+	bzero((char *)&serv_addr, sizeof(serv_addr));
+	portnum = atoi(argv[1]);
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = INADDR_ANY;
+	serv_addr.sin_port = htons(portnum);
+
+	k=bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+	if (k < 0) fatal("Unable to bind");
+	
+	listen(sockfd,QUE_LEN);
+	clilen = sizeof(cli_addr);
+	newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+	
+	if (newsockfd < 0) fatal("Error on accept");
+	bzero(buff,BUF_SIZE);
+	l = recv(newsockfd, (struct my_data *)&data, sizeof(data),0);
+	if(n < 0) fatal("Error reading from the server");
+	
+	data.value = ntohf(data.value);
+	printf("Client C data:\n floating data: %f \n character: %c \n integer : %d \n",data.value,data.variable,data.number);
+ 	
+	close(newsockfd);
+	close(sockfd);
+	printf("logging out of the server....\nconnection terminated \n");
+	return 0;
+}
+
+
+
+
