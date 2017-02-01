@@ -1,0 +1,130 @@
+#include <sys/types.h>
+#include <sys/fcntl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <arpa/inet.h>
+
+#define SERVER_PORT 5042
+#define BUF_SIZE 256
+#define QUEUE_SIZE 10
+
+typedef struct _data {
+	float value;
+	int number;
+	char variable;
+}data;
+
+float htonf(float f){
+	int num = htonl(*(unsigned int *)&f);
+	return *(float *)&num;
+}
+
+void SendToClient(data newdata){
+	int sockfd,n;
+	struct sockaddr_in serv_addr;
+	char host;
+	int port;
+	struct hostent *server;
+	char buffer[BUF_SIZE];
+
+	printf("\n establishing connection with new client \n");
+	printf("please enter the host and port number\n");
+	scanf("%s %d", &host,&port);
+	
+	sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if(sockfd<0) printf("error opening socket");
+	server =  gethostbyname(&host);
+	if(server == NULL) 
+	fatal("error no such host");
+	
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = 	AF_INET;
+	bcopy((char *)server->h_addr,(char *)&serv_addr.sin_addr.s_addr 
+	,server->h_length);
+	serv_addr.sin_port = htons(port);
+
+	if (connect(sockfd,(struct sockaddr 
+	*)&serv_addr,sizeof(serv_addr)) < 0)
+	fatal("error connecting");
+	
+	//newdata.number = htonf(newdata.value);
+	printf("sending modified message");
+	n = send(sockfd, &newdata,sizeof(newdata),0);
+	if (n < 0)
+	fatal("error writing to socket");
+}
+
+int main(int argc, char *argv[] )
+{
+	int sockfd, newsockfd, clilen, n,s,b,l,portno;
+	char a[1000],buffer[BUF_SIZE],d;
+	float c;
+	struct sockaddr_in serv_addr, cli_addr;
+	data sdata,newdata;
+
+	/*Build address structure to bind to socket*/
+	if(argc < 2) fatal("provide the port number");
+
+	sockfd=socket(AF_INET,SOCK_STREAM,0);
+	if(sockfd<0) fatal("socket failed");
+
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	portno = atoi(argv[1]);
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = INADDR_ANY;
+	serv_addr.sin_port = htons(portno);
+
+	b=bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+	if(b<0) fatal("bind failed");
+
+	l=listen(sockfd, QUEUE_SIZE);
+	
+	clilen = sizeof(cli_addr);
+
+	/*socket is now set up and bound. wait for connection and process it*/
+
+	newsockfd=accept(sockfd,0,0);
+	if(newsockfd < 0) fatal("accept failed");
+	
+	bzero(buffer,256);
+	
+	n=recv(newsockfd,buffer, sizeof(buffer),0);
+	if(n < 0) fatal("reading from socket unsuccessful");
+	printf("%s",buffer);
+	sscanf(buffer,"%d %f %c",&b,&c,&d);
+	//a=buffer;	
+	sdata.value = c;//(int)buffer[0];
+	sdata.number=b; //(float)buffer[1];
+	sdata.variable=d; //(char)buffer[2];
+	printf("Message recieved from client: %d \t %c \t %f\n",sdata.number,sdata.variable,sdata.value);
+	//printf("modi %d \t %c \t %f \t",(int)buffer[1], (char)buffer[2],(float)buffer[3]);
+	newdata.value = ((sdata.value)+1);
+	newdata.number=(sdata.number)*2;
+
+	if(sdata.variable == 'z')
+	{
+		newdata.variable ='a';
+	}
+	else
+	{	
+		newdata.variable = sdata.variable+1;
+	}
+	printf("modified message: %d \t %c\t %f\t",newdata.number,newdata.variable,newdata.value);
+
+	SendToClient(newdata);
+	close(newsockfd);
+	close(sockfd);
+	return 0;
+}
+
+fatal(char *string){
+printf("%s\n",string);
+exit(0);
+}
+
+
