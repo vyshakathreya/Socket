@@ -1,0 +1,73 @@
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#define BUFF_SIZE 256
+
+typedef struct _Adata{
+float value;
+int number;
+char variable;
+}macA_data;
+
+int main(int argc, char *argv[])
+{
+int sockA, portnum, n,tem;
+float flt;
+char c;
+char buffer[BUFF_SIZE];
+char a[BUFF_SIZE];
+struct hostent *server;
+struct sockaddr_in serv_addr;
+macA_data data;
+
+if(argc != 3) fatal("Usage: client server-name port-number");
+portnum=atoi(argv[2]);
+sockA = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+if(sockA<0) fatal("socket");
+server = gethostbyname(argv[1]);
+if(server == NULL) fatal("no such host");
+
+bzero ((char *) &serv_addr,sizeof(serv_addr));
+serv_addr.sin_family = AF_INET;
+bcopy((char *)server->h_addr,(char *)&serv_addr.sin_addr.s_addr,
+server->h_length);
+serv_addr.sin_port=htons(portnum);
+
+if((connect(sockA, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0))
+fatal("connect failed");
+
+printf("Enter a floating number : ");
+scanf("%f",&flt);
+data.value=flt;
+printf("enter an integer:");
+scanf("%d",&tem);
+data.number=tem;
+printf("enter a character");
+scanf("%s",&c);
+data.variable=c;
+sprintf(a,"%d %f %c", data.number, data.value, data.variable);
+printf("%s",a);
+/* Connection is now established. send filename including 0 byte at the 
+end */
+n = send(sockA,a,sizeof(a),0);
+if (n < 0) fatal("error writing to socket");
+
+//write(sockA,&data,sizeof(data));
+/*Go get the file and write it to standard output. */
+
+close(sockA);
+return 0;
+}
+
+fatal(char *string)
+{
+printf("%s\n", string);
+exit(0);
+} 
+
+
